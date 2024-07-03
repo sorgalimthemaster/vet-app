@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Date
-from config.database import BaseLogin, BaseVeterinaria
+from config.database import BaseVeterinaria
 from sqlalchemy.orm import relationship
 
-class User(BaseLogin):
+class User(BaseVeterinaria):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
