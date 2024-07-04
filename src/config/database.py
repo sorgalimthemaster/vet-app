@@ -20,8 +20,6 @@ def get_db_veterinaria():
     try:
         db = SessionLocalVeterinaria()
         yield db
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unable to connect to the veterinaria database: {e}")
     finally:
         if db:
             db.close()
