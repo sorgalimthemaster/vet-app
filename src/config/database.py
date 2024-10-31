@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Configurar las URLs de conexión a las bases de datos
-SQLALCHEMY_DATABASE_URL_VETERINARIA = "postgresql://USER:PASSWORD@INTERNAL_HOST:PORT/DATABASE"
+SQLALCHEMY_DATABASE_URL_VETERINARIA = "postgresql://vetheart_mzn3_user:sAWAAhh6ChkYKjxxqlvWJTtblCe0KYei@dpg-cshci4o8fa8c739be8f0-a/vetheart_mzn3"
 
 # Crear motores de base de datos
 engine_veterinaria = create_engine(SQLALCHEMY_DATABASE_URL_VETERINARIA)
