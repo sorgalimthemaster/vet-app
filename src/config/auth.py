@@ -1,73 +1,45 @@
 from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+import secrets
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from controllers.crud import get_user_by_username
-from schemas.schemas import TokenData
 from config.database import get_db_veterinaria
+from models.models import Token, User
 
 SECRET_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    try:
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating access token: {str(e)}"
-        )
+def create_and_store_token(db: Session, expires_in_minutes: int = 30):
+    token_value = secrets.token_hex(16)
+    access_token_expires = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+    token = Token(token=token_value, access_token_expires=access_token_expires)
+    db.add(token)
+    db.commit()
+    db.refresh(token)
+    return token
 
-def get_current_user(db: Session = Depends(get_db_veterinaria), token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token does not contain valid user information",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        token_data = TokenData(username=username)
-    except JWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token decoding error: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error: {str(e)}"
-        )
-    try:
-        user = get_user_by_username(db, username=token_data.username)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return user
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching user: {str(e)}"
-        )
+def validate_token(token: HTTPAuthorizationCredentials, db: Session = Depends(get_db_veterinaria)):
+    # Busca el token en la base de datos
+    db_token = db.query(Token).filter(Token.token == token.credentials).first()
+
+    if not db_token:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Verifica si el token ha expirado
+    if db_token.access_token_expires < datetime.utcnow():
+        # Elimina el token expirado
+        db.delete(db_token)
+        db.commit()
+
+        # Genera y almacena un nuevo token
+        db_token = create_and_store_token(db)
+
+    # Obtén el usuario asociado al token
+    user = db.query(Token).filter(Token.token == db_token).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user

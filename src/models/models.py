@@ -1,6 +1,14 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Date
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey, Date
 from config.database import BaseVeterinaria
 from sqlalchemy.orm import relationship
+from config.database import BaseVeterinaria
+from datetime import datetime
+
+class Token(BaseVeterinaria):
+    __tablename__ = 'tokens'
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, nullable=False)
+    access_token_expires = Column(DateTime, nullable=False)
 
 class User(BaseVeterinaria):
     __tablename__ = "users"

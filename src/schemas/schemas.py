@@ -1,6 +1,13 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
+
+class TokenSchema(BaseModel):
+    token: str
+    access_token_expires: datetime
+
+    class Config:
+        from_attributes = True
 
 class UserBase(BaseModel):
     username: str

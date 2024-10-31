@@ -16,11 +16,10 @@ def login_for_access_token(form_data: schemas.UserCreate, db: Session):
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token_expires = timedelta(days=auth.ACCESS_TOKEN_EXPIRE_DAYS)
-        access_token = auth.create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
-        return {"access_token": access_token, "token_type": "bearer"}
+        expires_in_minutes = auth.ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60
+        access_token = auth.create_and_store_token(db, expires_in_minutes=expires_in_minutes)
+        
+        return {"access_token": access_token.token, "token_type": "bearer"}
     except HTTPException as e:
         raise HTTPException(
             status_code=e.status_code,
